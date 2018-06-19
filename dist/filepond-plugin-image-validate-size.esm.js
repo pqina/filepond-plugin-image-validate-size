@@ -1,21 +1,46 @@
 /*
- * FilePondPluginImageValidateSize 1.0.0
+ * FilePondPluginImageValidateSize 1.0.1
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
 // test if file is of type image
 const isImage = file => /^image/.test(file.type);
 
+const getImageSize = file =>
+  new Promise((resolve, reject) => {
+    const image = document.createElement('img');
+    image.src = URL.createObjectURL(file);
+    const intervalId = setInterval(() => {
+      if (image.naturalWidth && image.naturalHeight) {
+        clearInterval(intervalId);
+        URL.revokeObjectURL(image.src);
+        resolve({
+          width: image.naturalWidth,
+          height: image.naturalHeight
+        });
+      }
+    }, 1);
+  });
+
 var plugin$1 = ({ addFilter, utils }) => {
   // get quick reference to Type utils
-  const { Type, replaceInString } = utils;
+  const { Type, replaceInString, isFile } = utils;
 
   // required file size
-  const validateFile = (file, size) => {
-    // get image
+  const validateFile = (file, { minWidth, minHeight, maxWidth, maxHeight }) =>
+    new Promise((resolve, reject) => {
+      getImageSize(file).then(({ width, height }) => {
+        // validation result
+        if (width < minWidth || height < minHeight) {
+          reject('TOO_SMALL');
+        } else if (width > maxWidth || height > maxHeight) {
+          reject('TOO_BIG');
+        }
 
-    return true;
-  };
+        // all is well
+        resolve();
+      });
+    });
 
   // called for each file that is loaded
   // right before it is set to the item state
@@ -24,41 +49,50 @@ var plugin$1 = ({ addFilter, utils }) => {
     'LOAD_FILE',
     (file, { query }) =>
       new Promise((resolve, reject) => {
-        if (!isImage(file) || !query('GET_ALLOW_IMAGE_VALIDATE_SIZE')) {
+        if (
+          !isFile(file) ||
+          !isImage(file) ||
+          !query('GET_ALLOW_IMAGE_VALIDATE_SIZE')
+        ) {
           resolve(file);
           return;
         }
 
-        // required dimensions
-        const size = {
+        // get required dimensions
+        const bounds = {
           minWidth: query('GET_IMAGE_VALIDATE_SIZE_MIN_WIDTH'),
           minHeight: query('GET_IMAGE_VALIDATE_SIZE_MIN_HEIGHT'),
           maxWidth: query('GET_IMAGE_VALIDATE_SIZE_MAX_WIDTH'),
           maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT')
         };
 
-        const labels = {
-          tooSmall: query('GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_SMALL'),
-          tooBig: query('GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_BIG'),
-          minSize: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_SIZE'),
-          maxSize: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE')
+        validateFile(file, bounds)
+          .then(() => {
+            resolve(file);
+          })
+          .catch(error => {
+            const status = {
+              TOO_SMALL: {
+                label: query(
+                  'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_SMALL'
+                ),
+                bounds: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_SIZE')
+              },
+              TOO_BIG: {
+                label: query(
+                  'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_BIG'
+                ),
+                bounds: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE')
+              }
+            }[error];
 
-          // validation result
-        };
-        const result = validateFile(file, size);
-        if (result === true) {
-          resolve(file);
-          return;
-        }
-
-        //query('GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_BIG'),
-
-        reject({
-          status: {
-            main: labels[result.status],
-            sub: replaceInString(labels[result.requirements], size)
-          }
-        });
+            reject({
+              status: {
+                main: status.label,
+                sub: replaceInString(status.bounds, bounds)
+              }
+            });
+          });
       })
   );
 
@@ -70,10 +104,10 @@ var plugin$1 = ({ addFilter, utils }) => {
       allowImageValidateSize: [true, Type.BOOLEAN],
 
       // required dimensions
-      imageValidateSizeMinWidth: [1, Type.INT],
+      imageValidateSizeMinWidth: [1, Type.INT], // needs to be atleast one pixel
       imageValidateSizeMinHeight: [1, Type.INT],
-      imageValidateSizeMaxWidth: [null, Type.INT],
-      imageValidateSizeMaxHeight: [null, Type.INT],
+      imageValidateSizeMaxWidth: [65535, Type.INT], // maximum size of JPEG, fine for now I guess
+      imageValidateSizeMaxHeight: [65535, Type.INT],
 
       // label to show when an image is too small or image is too big
       imageValidateSizeLabelImageSizeTooSmall: [

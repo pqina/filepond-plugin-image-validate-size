@@ -1,5 +1,5 @@
 /*
- * FilePondPluginImageValidateSize 1.0.0
+ * FilePondPluginImageValidateSize 1.0.1
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
@@ -40,7 +40,8 @@
 
     // get quick reference to Type utils
     var Type = utils.Type,
-      replaceInString = utils.replaceInString;
+      replaceInString = utils.replaceInString,
+      isFile = utils.isFile;
 
     // required file size
 
@@ -73,7 +74,11 @@
     addFilter('LOAD_FILE', function(file, _ref4) {
       var query = _ref4.query;
       return new Promise(function(resolve, reject) {
-        if (!isImage(file) || !query('GET_ALLOW_IMAGE_VALIDATE_SIZE')) {
+        if (
+          !isFile(file) ||
+          !isImage(file) ||
+          !query('GET_ALLOW_IMAGE_VALIDATE_SIZE')
+        ) {
           resolve(file);
           return;
         }
