@@ -1,5 +1,5 @@
 /*
- * FilePondPluginImageValidateSize 1.0.1
+ * FilePondPluginImageValidateSize 1.0.2
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
@@ -21,6 +21,7 @@
     return new Promise(function(resolve, reject) {
       var image = document.createElement('img');
       image.src = URL.createObjectURL(file);
+      image.onerror = reject;
       var intervalId = setInterval(function() {
         if (image.naturalWidth && image.naturalHeight) {
           clearInterval(intervalId);
@@ -51,20 +52,24 @@
         maxWidth = _ref2.maxWidth,
         maxHeight = _ref2.maxHeight;
       return new Promise(function(resolve, reject) {
-        getImageSize(file).then(function(_ref3) {
-          var width = _ref3.width,
-            height = _ref3.height;
+        getImageSize(file)
+          .then(function(_ref3) {
+            var width = _ref3.width,
+              height = _ref3.height;
 
-          // validation result
-          if (width < minWidth || height < minHeight) {
-            reject('TOO_SMALL');
-          } else if (width > maxWidth || height > maxHeight) {
-            reject('TOO_BIG');
-          }
+            // validation result
+            if (width < minWidth || height < minHeight) {
+              reject('TOO_SMALL');
+            } else if (width > maxWidth || height > maxHeight) {
+              reject('TOO_BIG');
+            }
 
-          // all is well
-          resolve();
-        });
+            // all is well
+            resolve();
+          })
+          .catch(function(err) {
+            return reject();
+          });
       });
     };
 
@@ -96,25 +101,36 @@
             resolve(file);
           })
           .catch(function(error) {
-            var status = {
-              TOO_SMALL: {
-                label: query(
-                  'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_SMALL'
-                ),
-                bounds: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_SIZE')
-              },
-              TOO_BIG: {
-                label: query(
-                  'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_BIG'
-                ),
-                bounds: query('GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE')
-              }
-            }[error];
+            var status = error
+              ? {
+                  TOO_SMALL: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_SMALL'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_SIZE'
+                    )
+                  },
+                  TOO_BIG: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_SIZE_TOO_BIG'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE'
+                    )
+                  }
+                }[error]
+              : {
+                  label: query('GET_IMAGE_VALIDATE_SIZE_LABEL_FORMAT_ERROR'),
+                  details: file.type
+                };
 
             reject({
               status: {
                 main: status.label,
-                sub: replaceInString(status.bounds, bounds)
+                sub: error
+                  ? replaceInString(status.details, bounds)
+                  : status.details
               }
             });
           });
@@ -128,13 +144,19 @@
         // Enable or disable file type validation
         allowImageValidateSize: [true, Type.BOOLEAN],
 
-        // required dimensions
+        // Error thrown when image can not be loaded
+        imageValidateSizeLabelFormatError: [
+          'Image type not supported',
+          Type.STRING
+        ],
+
+        // Required dimensions
         imageValidateSizeMinWidth: [1, Type.INT], // needs to be atleast one pixel
         imageValidateSizeMinHeight: [1, Type.INT],
         imageValidateSizeMaxWidth: [65535, Type.INT], // maximum size of JPEG, fine for now I guess
         imageValidateSizeMaxHeight: [65535, Type.INT],
 
-        // label to show when an image is too small or image is too big
+        // Label to show when an image is too small or image is too big
         imageValidateSizeLabelImageSizeTooSmall: [
           'Image is too small',
           Type.STRING
