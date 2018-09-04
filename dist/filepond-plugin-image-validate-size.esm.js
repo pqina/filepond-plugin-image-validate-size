@@ -1,5 +1,5 @@
 /*
- * FilePondPluginImageValidateSize 1.0.2
+ * FilePondPluginImageValidateSize 1.1.0
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
@@ -10,7 +10,10 @@ const getImageSize = file =>
   new Promise((resolve, reject) => {
     const image = document.createElement('img');
     image.src = URL.createObjectURL(file);
-    image.onerror = reject;
+    image.onerror = err => {
+      clearInterval(intervalId);
+      reject(err);
+    };
     const intervalId = setInterval(() => {
       if (image.naturalWidth && image.naturalHeight) {
         clearInterval(intervalId);
@@ -28,21 +31,36 @@ var plugin$1 = ({ addFilter, utils }) => {
   const { Type, replaceInString, isFile } = utils;
 
   // required file size
-  const validateFile = (file, { minWidth, minHeight, maxWidth, maxHeight }) =>
+  const validateFile = (file, bounds, measure) =>
     new Promise((resolve, reject) => {
+      const onReceiveSize = ({ width, height }) => {
+        const { minWidth, minHeight, maxWidth, maxHeight } = bounds;
+
+        // validation result
+        if (width < minWidth || height < minHeight) {
+          reject('TOO_SMALL');
+        } else if (width > maxWidth || height > maxHeight) {
+          reject('TOO_BIG');
+        }
+
+        // all is well
+        resolve();
+      };
+
       getImageSize(file)
-        .then(({ width, height }) => {
-          // validation result
-          if (width < minWidth || height < minHeight) {
-            reject('TOO_SMALL');
-          } else if (width > maxWidth || height > maxHeight) {
-            reject('TOO_BIG');
+        .then(onReceiveSize)
+        .catch(() => {
+          // no custom measure method supplied, exit here
+          if (!measure) {
+            reject();
+            return;
           }
 
-          // all is well
-          resolve();
-        })
-        .catch(err => reject());
+          // try fallback if defined by user, else reject
+          measure(file, bounds)
+            .then(onReceiveSize)
+            .catch(() => reject());
+        });
     });
 
   // called for each file that is loaded
@@ -69,7 +87,10 @@ var plugin$1 = ({ addFilter, utils }) => {
           maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT')
         };
 
-        validateFile(file, bounds)
+        // get optional custom measure function
+        const measure = query('GET_IMAGE_VALIDATE_SIZE_MEASURE');
+
+        validateFile(file, bounds, measure)
           .then(() => {
             resolve(file);
           })
@@ -123,8 +144,11 @@ var plugin$1 = ({ addFilter, utils }) => {
         Type.STRING
       ],
 
+      // Custom function to use as image measure
+      imageValidateSizeMeasure: [null, Type.FUNCTION],
+
       // Required dimensions
-      imageValidateSizeMinWidth: [1, Type.INT], // needs to be atleast one pixel
+      imageValidateSizeMinWidth: [1, Type.INT], // needs to be at least one pixel
       imageValidateSizeMinHeight: [1, Type.INT],
       imageValidateSizeMaxWidth: [65535, Type.INT], // maximum size of JPEG, fine for now I guess
       imageValidateSizeMaxHeight: [65535, Type.INT],

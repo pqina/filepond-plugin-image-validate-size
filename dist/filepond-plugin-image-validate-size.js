@@ -1,5 +1,5 @@
 /*
- * FilePondPluginImageValidateSize 1.0.2
+ * FilePondPluginImageValidateSize 1.1.0
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
@@ -21,7 +21,10 @@
     return new Promise(function(resolve, reject) {
       var image = document.createElement('img');
       image.src = URL.createObjectURL(file);
-      image.onerror = reject;
+      image.onerror = function(err) {
+        clearInterval(intervalId);
+        reject(err);
+      };
       var intervalId = setInterval(function() {
         if (image.naturalWidth && image.naturalHeight) {
           clearInterval(intervalId);
@@ -46,29 +49,43 @@
 
     // required file size
 
-    var validateFile = function validateFile(file, _ref2) {
-      var minWidth = _ref2.minWidth,
-        minHeight = _ref2.minHeight,
-        maxWidth = _ref2.maxWidth,
-        maxHeight = _ref2.maxHeight;
+    var validateFile = function validateFile(file, bounds, measure) {
       return new Promise(function(resolve, reject) {
-        getImageSize(file)
-          .then(function(_ref3) {
-            var width = _ref3.width,
-              height = _ref3.height;
+        var onReceiveSize = function onReceiveSize(_ref2) {
+          var width = _ref2.width,
+            height = _ref2.height;
+          var minWidth = bounds.minWidth,
+            minHeight = bounds.minHeight,
+            maxWidth = bounds.maxWidth,
+            maxHeight = bounds.maxHeight;
 
-            // validation result
-            if (width < minWidth || height < minHeight) {
-              reject('TOO_SMALL');
-            } else if (width > maxWidth || height > maxHeight) {
-              reject('TOO_BIG');
+          // validation result
+
+          if (width < minWidth || height < minHeight) {
+            reject('TOO_SMALL');
+          } else if (width > maxWidth || height > maxHeight) {
+            reject('TOO_BIG');
+          }
+
+          // all is well
+          resolve();
+        };
+
+        getImageSize(file)
+          .then(onReceiveSize)
+          .catch(function() {
+            // no custom measure method supplied, exit here
+            if (!measure) {
+              reject();
+              return;
             }
 
-            // all is well
-            resolve();
-          })
-          .catch(function(err) {
-            return reject();
+            // try fallback if defined by user, else reject
+            measure(file, bounds)
+              .then(onReceiveSize)
+              .catch(function() {
+                return reject();
+              });
           });
       });
     };
@@ -76,8 +93,8 @@
     // called for each file that is loaded
     // right before it is set to the item state
     // should return a promise
-    addFilter('LOAD_FILE', function(file, _ref4) {
-      var query = _ref4.query;
+    addFilter('LOAD_FILE', function(file, _ref3) {
+      var query = _ref3.query;
       return new Promise(function(resolve, reject) {
         if (
           !isFile(file) ||
@@ -96,7 +113,10 @@
           maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT')
         };
 
-        validateFile(file, bounds)
+        // get optional custom measure function
+        var measure = query('GET_IMAGE_VALIDATE_SIZE_MEASURE');
+
+        validateFile(file, bounds, measure)
           .then(function() {
             resolve(file);
           })
@@ -150,8 +170,11 @@
           Type.STRING
         ],
 
+        // Custom function to use as image measure
+        imageValidateSizeMeasure: [null, Type.FUNCTION],
+
         // Required dimensions
-        imageValidateSizeMinWidth: [1, Type.INT], // needs to be atleast one pixel
+        imageValidateSizeMinWidth: [1, Type.INT], // needs to be at least one pixel
         imageValidateSizeMinHeight: [1, Type.INT],
         imageValidateSizeMaxWidth: [65535, Type.INT], // maximum size of JPEG, fine for now I guess
         imageValidateSizeMaxHeight: [65535, Type.INT],
