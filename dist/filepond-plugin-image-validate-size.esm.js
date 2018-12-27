@@ -1,8 +1,10 @@
 /*
- * FilePondPluginImageValidateSize 1.1.0
+ * FilePondPluginImageValidateSize 1.2.0
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
+
+/* eslint-disable */
 // test if file is of type image
 const isImage = file => /^image/.test(file.type);
 
@@ -34,13 +36,26 @@ var plugin$1 = ({ addFilter, utils }) => {
   const validateFile = (file, bounds, measure) =>
     new Promise((resolve, reject) => {
       const onReceiveSize = ({ width, height }) => {
-        const { minWidth, minHeight, maxWidth, maxHeight } = bounds;
+        const {
+          minWidth,
+          minHeight,
+          maxWidth,
+          maxHeight,
+          minResolution,
+          maxResolution
+        } = bounds;
+
+        const resolution = width * height;
 
         // validation result
         if (width < minWidth || height < minHeight) {
           reject('TOO_SMALL');
         } else if (width > maxWidth || height > maxHeight) {
           reject('TOO_BIG');
+        } else if (minResolution !== null && resolution < minResolution) {
+          reject('TOO_LOW_RES');
+        } else if (maxResolution !== null && resolution > maxResolution) {
+          reject('TOO_HIGH_RES');
         }
 
         // all is well
@@ -84,7 +99,9 @@ var plugin$1 = ({ addFilter, utils }) => {
           minWidth: query('GET_IMAGE_VALIDATE_SIZE_MIN_WIDTH'),
           minHeight: query('GET_IMAGE_VALIDATE_SIZE_MIN_HEIGHT'),
           maxWidth: query('GET_IMAGE_VALIDATE_SIZE_MAX_WIDTH'),
-          maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT')
+          maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT'),
+          minResolution: query('GET_IMAGE_VALIDATE_SIZE_MIN_RESOLUTION'),
+          maxResolution: query('GET_IMAGE_VALIDATE_SIZE_MAX_RESOLUTION')
         };
 
         // get optional custom measure function
@@ -111,6 +128,22 @@ var plugin$1 = ({ addFilter, utils }) => {
                     ),
                     details: query(
                       'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE'
+                    )
+                  },
+                  TOO_LOW_RES: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_RESOLUTION_TOO_LOW'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_RESOLUTION'
+                    )
+                  },
+                  TOO_HIGH_RES: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_RESOLUTION_TOO_HIGH'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_RESOLUTION'
                     )
                   }
                 }[error]
@@ -147,6 +180,26 @@ var plugin$1 = ({ addFilter, utils }) => {
       // Custom function to use as image measure
       imageValidateSizeMeasure: [null, Type.FUNCTION],
 
+      // Required amount of pixels in the image
+      imageValidateSizeMinResolution: [null, Type.INT],
+      imageValidateSizeMaxResolution: [null, Type.INT],
+      imageValidateSizeLabelImageResolutionTooLow: [
+        'Resolution is too low',
+        Type.STRING
+      ],
+      imageValidateSizeLabelImageResolutionTooHigh: [
+        'Resolution is too high',
+        Type.STRING
+      ],
+      imageValidateSizeLabelExpectedMinResolution: [
+        'Minimum resolution is {minResolution}',
+        Type.STRING
+      ],
+      imageValidateSizeLabelExpectedMaxResolution: [
+        'Maximum resolution is {maxResolution}',
+        Type.STRING
+      ],
+
       // Required dimensions
       imageValidateSizeMinWidth: [1, Type.INT], // needs to be at least one pixel
       imageValidateSizeMinHeight: [1, Type.INT],
@@ -171,8 +224,10 @@ var plugin$1 = ({ addFilter, utils }) => {
   };
 };
 
-if (typeof navigator !== 'undefined' && document) {
-  // plugin has loaded
+const isBrowser =
+  typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+if (isBrowser && document) {
   document.dispatchEvent(
     new CustomEvent('FilePond:pluginloaded', { detail: plugin$1 })
   );

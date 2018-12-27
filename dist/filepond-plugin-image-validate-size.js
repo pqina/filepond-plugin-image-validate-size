@@ -1,8 +1,10 @@
 /*
- * FilePondPluginImageValidateSize 1.1.0
+ * FilePondPluginImageValidateSize 1.2.0
  * Licensed under MIT, https://opensource.org/licenses/MIT
  * Please visit https://pqina.nl/filepond for details.
  */
+
+/* eslint-disable */
 (function(global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined'
     ? (module.exports = factory())
@@ -57,14 +59,21 @@
           var minWidth = bounds.minWidth,
             minHeight = bounds.minHeight,
             maxWidth = bounds.maxWidth,
-            maxHeight = bounds.maxHeight;
+            maxHeight = bounds.maxHeight,
+            minResolution = bounds.minResolution,
+            maxResolution = bounds.maxResolution;
+
+          var resolution = width * height;
 
           // validation result
-
           if (width < minWidth || height < minHeight) {
             reject('TOO_SMALL');
           } else if (width > maxWidth || height > maxHeight) {
             reject('TOO_BIG');
+          } else if (minResolution !== null && resolution < minResolution) {
+            reject('TOO_LOW_RES');
+          } else if (maxResolution !== null && resolution > maxResolution) {
+            reject('TOO_HIGH_RES');
           }
 
           // all is well
@@ -110,7 +119,9 @@
           minWidth: query('GET_IMAGE_VALIDATE_SIZE_MIN_WIDTH'),
           minHeight: query('GET_IMAGE_VALIDATE_SIZE_MIN_HEIGHT'),
           maxWidth: query('GET_IMAGE_VALIDATE_SIZE_MAX_WIDTH'),
-          maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT')
+          maxHeight: query('GET_IMAGE_VALIDATE_SIZE_MAX_HEIGHT'),
+          minResolution: query('GET_IMAGE_VALIDATE_SIZE_MIN_RESOLUTION'),
+          maxResolution: query('GET_IMAGE_VALIDATE_SIZE_MAX_RESOLUTION')
         };
 
         // get optional custom measure function
@@ -137,6 +148,22 @@
                     ),
                     details: query(
                       'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_SIZE'
+                    )
+                  },
+                  TOO_LOW_RES: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_RESOLUTION_TOO_LOW'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MIN_RESOLUTION'
+                    )
+                  },
+                  TOO_HIGH_RES: {
+                    label: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_IMAGE_RESOLUTION_TOO_HIGH'
+                    ),
+                    details: query(
+                      'GET_IMAGE_VALIDATE_SIZE_LABEL_EXPECTED_MAX_RESOLUTION'
                     )
                   }
                 }[error]
@@ -173,6 +200,26 @@
         // Custom function to use as image measure
         imageValidateSizeMeasure: [null, Type.FUNCTION],
 
+        // Required amount of pixels in the image
+        imageValidateSizeMinResolution: [null, Type.INT],
+        imageValidateSizeMaxResolution: [null, Type.INT],
+        imageValidateSizeLabelImageResolutionTooLow: [
+          'Resolution is too low',
+          Type.STRING
+        ],
+        imageValidateSizeLabelImageResolutionTooHigh: [
+          'Resolution is too high',
+          Type.STRING
+        ],
+        imageValidateSizeLabelExpectedMinResolution: [
+          'Minimum resolution is {minResolution}',
+          Type.STRING
+        ],
+        imageValidateSizeLabelExpectedMaxResolution: [
+          'Maximum resolution is {maxResolution}',
+          Type.STRING
+        ],
+
         // Required dimensions
         imageValidateSizeMinWidth: [1, Type.INT], // needs to be at least one pixel
         imageValidateSizeMinHeight: [1, Type.INT],
@@ -200,8 +247,10 @@
     };
   };
 
-  if (typeof navigator !== 'undefined' && document) {
-    // plugin has loaded
+  var isBrowser =
+    typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+  if (isBrowser && document) {
     document.dispatchEvent(
       new CustomEvent('FilePond:pluginloaded', { detail: plugin$1 })
     );
