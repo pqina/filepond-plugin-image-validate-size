@@ -1,6 +1,6 @@
 {
     "name": "filepond-plugin-image-validate-size",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Image Size Validation Plugin for FilePond",
     "homepage": "https://pqina.nl/filepond",
     "repository": "pqina/filepond-plugin-image-validate-size",
@@ -13,6 +13,6 @@
         "url": "https://pqina.nl"
     },
     "peerDependencies": {
-        "filepond": ">=1.8.x <4.x"
+        "filepond": ">=1.8.x <5.x"
     }
 }
