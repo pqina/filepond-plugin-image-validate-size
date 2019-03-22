@@ -1,10 +1,11 @@
-/*
- * FilePondPluginImageValidateSize 1.2.1
- * Licensed under MIT, https://opensource.org/licenses/MIT
- * Please visit https://pqina.nl/filepond for details.
+/*!
+ * FilePondPluginImageValidateSize 1.2.2
+ * Licensed under MIT, https://opensource.org/licenses/MIT/
+ * Please visit https://pqina.nl/filepond/ for details.
  */
 
 /* eslint-disable */
+
 // test if file is of type image
 const isImage = file => /^image/.test(file.type);
 
@@ -28,7 +29,7 @@ const getImageSize = file =>
     }, 1);
   });
 
-var plugin$1 = ({ addFilter, utils }) => {
+const plugin = ({ addFilter, utils }) => {
   // get quick reference to Type utils
   const { Type, replaceInString, isFile } = utils;
 
@@ -224,13 +225,13 @@ var plugin$1 = ({ addFilter, utils }) => {
   };
 };
 
+// fire pluginloaded event if running in browser, this allows registering the plugin when using async script tags
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
-
 if (isBrowser) {
   document.dispatchEvent(
-    new CustomEvent('FilePond:pluginloaded', { detail: plugin$1 })
+    new CustomEvent('FilePond:pluginloaded', { detail: plugin })
   );
 }
 
-export default plugin$1;
+export default plugin;
