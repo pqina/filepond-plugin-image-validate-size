@@ -1,5 +1,5 @@
 /*!
- * FilePondPluginImageValidateSize 1.2.3
+ * FilePondPluginImageValidateSize 1.2.4
  * Licensed under MIT, https://opensource.org/licenses/MIT/
  * Please visit https://pqina.nl/filepond/ for details.
  */
