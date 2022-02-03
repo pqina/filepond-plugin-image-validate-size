@@ -21,6 +21,8 @@ declare module "filepond" {
     imageValidateSizeLabelImageSizeTooBig?: string;
     /** Message shown to indicate the minimum image size. */
     imageValidateSizeLabelExpectedMinSize?: string;
+    /** Message shown to indicate the maximum image size. */
+    imageValidateSizeLabelExpectedMaxSize?: string;
     /** The minimum image resolution. */
     imageValidateSizeMinResolution?: number;
     /** The maximum image resolution. */
